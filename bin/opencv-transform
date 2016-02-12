@@ -1,0 +1,110 @@
+#!/usr/bin/env python
+
+import cv2
+import numpy
+import argparse
+
+################################################################################
+
+class OrderAction(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        oargs = getattr(namespace, 'oargs') \
+            if hasattr(namespace, 'oargs') else {}
+
+        oargs[self.dest]=values
+
+        setattr(namespace, 'oargs', oargs)
+        setattr(namespace, self.dest, values)
+
+################################################################################
+
+parser = argparse.ArgumentParser()
+
+parser.add_argument('--source', type=str, required=True)
+parser.add_argument('--destination', type=str, required=True)
+
+parser.add_argument('--resize', action=OrderAction, type=bool, nargs=0)
+parser.add_argument('--blur', action=OrderAction, type=bool, nargs=0)
+parser.add_argument('--gaussian', action=OrderAction, type=bool, nargs=0)
+parser.add_argument('--median', action=OrderAction, type=bool, nargs=0)
+parser.add_argument('--bilateral', action=OrderAction, type=bool, nargs=0)
+parser.add_argument('--erode', action=OrderAction, type=bool, nargs=0)
+parser.add_argument('--dilate', action=OrderAction, type=bool, nargs=0)
+
+parser.add_argument('--morphology', action=OrderAction, type=str, choices=[
+    'MORPH_OPEN', 'MORPH_CLOSE', 'MORPH_GRADIENT', 'MORPH_TOPHAT', 'MORPH_BLACKHAT'])
+
+parser.add_argument('--threshold', action=OrderAction, type=str, choices=[
+    'THRESH_BINARY', 'THRESH_BINARY_INV', 'THRESH_TRUNC',
+    'THRESH_TOZERO', 'THRESH_TOZERO_INV', 'THRESH_BINARY+THRESH_OTSU'])
+
+parser.add_argument('--adaptive', action=OrderAction, type=str, choices=[
+    'ADAPTIVE_THRESH_MEAN_C', 'ADAPTIVE_THRESH_GAUSSIAN_C'])
+
+args=parser.parse_args()
+
+################################################################################
+
+def resize(img):
+    return cv2.resize(img, None, fx=3, fy=3, interpolation=cv2.INTER_CUBIC)
+
+def blur(img):
+    return cv2.blur(img, (5, 5))
+
+def gaussianBlur(img):
+    return cv2.GaussianBlur(img, (5, 5), 0)
+
+def medianBlur(img):
+    return cv2.medianBlur(img, 5)
+
+def bilateralFilter(img):
+    return cv2.bilateralFilter(img, 9, 75, 75)
+
+def erode(img, kernel):
+    return cv2.erode(img, kernel, iterations=1)
+
+def dilate(img, kernel):
+    return cv2.dilate(img, kernel, iterations=1)
+
+def morphology(img, kernel, type):
+    return cv2.morphologyEx(img, getattr(cv2, type), kernel);
+
+def threshold(img, type):
+    retval,img= cv2.threshold(img, 127, 255, getattr(cv2, type)) \
+        if type != 'THRESH_BINARY+THRESH_OTSU' else \
+            cv2.threshold(img, 0, 255, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+
+    return img
+
+def adaptiveThreshold(img, type):
+    return cv2.adaptiveThreshold(img, 255, getattr(cv2, type), cv2.THRESH_BINARY, 11, 2)
+
+################################################################################
+
+img=cv2.imread(args.source)
+img=cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+kernel=numpy.ones((5, 5), numpy.uint8)
+
+for (transform, type) in args.oargs.items():
+    if transform == 'resize':
+        img=resize(img)
+    elif transform == 'blur':
+        img=blur(img)
+    elif transform == 'gaussian':
+        img=gaussianBlur(img)
+    elif transform == 'median':
+        img=medianBlur(img)
+    elif transform == 'bilateral':
+        img=bilateralFilter(img)
+    elif transform == 'erode':
+        img=erode(img, kernel)
+    elif transform == 'dilate':
+        img=dilate(img, kernel)
+    elif transform == 'morphology':
+        img=morphology(img, kernel, type)
+    elif transform == 'threshold':
+        img=threshold(img, type)
+    elif transform == 'adaptive':
+        img=adaptiveThreshold(img, type)
+
+cv2.imwrite(args.destination, img)
