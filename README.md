@@ -18,7 +18,7 @@ usage: opencv-transform.py [-h] --source SOURCE --destination DESTINATION
     ├── .editorconfig
     ├── .gitattributes
     ├── .gitignore
-    ├── LICENSE.txt
+    ├── LICENSE.md
     └── README.md
 
 ## License
